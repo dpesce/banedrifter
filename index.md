@@ -1,4 +1,3 @@
-# Banedrifting
 
 A place to explore the world of highly restricted MTG questions.
 
