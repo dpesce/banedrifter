@@ -2,18 +2,23 @@
 # imports
 
 import numpy as np
+rng = np.random.default_rng()
 
 ###################################################
-# useful things
-
-rng = np.random.default_rng()
+# useful constants
 
 ba = "Baneslayer Angel"
 md = "Mulldrifter"
 bl = "Tundra"
 
-cr = "Creature"
-ld = "Land"
+creature = "Creature"
+land = "Land"
+
+white = "White"
+blue = "Blue"
+black = "Black"
+red = "Red"
+green = "Green"
 
 ###################################################
 # card class
@@ -23,15 +28,53 @@ class card:
     An individual card
     """
 
-    def __init__(self,name,cardtype,cmc,altcost=None):
+    def __init__(self,name):
 
         self.name = name
-        self.type = cardtype
-        self.cmc = cmc
-        self.altcost = altcost
 
         self.tapped = False
         self.sick = True
+
+        self.type = None
+        self.cmc = None
+        self.mc = None
+        self.color = None
+        self.altcost = None
+
+        if (name == ba):
+            self.type = creature
+            self.cmc = 5
+            self.mc = '3WW'
+            self.color = white
+            self.altcost = 0
+
+        if (name == md):
+            self.type = creature
+            self.cmc = 5
+            self.mc = '4U'
+            self.color = blue
+            self.altcost = 3
+
+        if (name == "Plains"):
+            self.type = land
+            self.cmc = 0
+            self.mc = '0'
+            self.color = None
+            self.altcost = 0
+
+        if (name == "Island"):
+            self.type = land
+            self.cmc = 0
+            self.mc = '0'
+            self.color = None
+            self.altcost = 0
+
+        if (name == "Tundra"):
+            self.type = land
+            self.cmc = 0
+            self.mc = '0'
+            self.color = None
+            self.altcost = 0
 
     # show the card name when printed
     def __repr__(self):
@@ -50,11 +93,11 @@ class deck:
         # add the appropriate cards to the deck
         self.cards = list()
         for i in range(N_bane):
-            self.cards.append(card(ba,cr,5))
+            self.cards.append(card(ba))
         for i in range(N_mull):
-            self.cards.append(card(md,cr,5,altcost=3))
+            self.cards.append(card(md))
         for i in range(N_land):
-            self.cards.append(card(bl,ld,0))
+            self.cards.append(card(bl))
         self.cards = np.array(self.cards)
 
         # start with the deck randomly shuffled
@@ -293,17 +336,21 @@ class player:
         ind = np.where(indarr)[0][0]
 
         # check that you have enough mana to play this card
-        if self.count_untapped_lands() < self.hand.cards[ind].cmc:
+        if not use_altcost:
+            cost = self.hand.cards[ind].cmc
+        else:
+            cost = self.hand.cards[ind].altcost
+        if self.count_untapped_lands() < cost:
             raise Exception("You do not have enough mana to play this card!")
 
         # otherwise, tap the necessary amount of mana
         manacount = 0
-        if self.hand.cards[ind].cmc > 0:
+        if cost > 0:
             for landcard in self.lands:
                 if not landcard.tapped:
                     landcard.tapped = True
                     manacount += 1
-                if manacount == self.hand.cards[ind].cmc:
+                if manacount == cost:
                     break
         if manacount > 0:
             self.gamelog += 'Tapping ' + str(manacount) + ' lands.' + '\n'
@@ -312,13 +359,17 @@ class player:
         card_to_play = self.hand.cards[ind]
         self.hand = hand(np.delete(self.hand.cards,ind))
 
-        # place the card on the field
+        # place the card on the field or into the graveyard, as appropriate
         if cardname == ba:
             self.banes = np.concatenate((self.banes,[card_to_play]))
             self.gamelog += 'Playing ' + ba + '.' + '\n'
         if cardname == md:
-            self.mulls = np.concatenate((self.mulls,[card_to_play]))
-            self.gamelog += 'Playing ' + md + '.' + '\n'
+            if not use_altcost:
+                self.mulls = np.concatenate((self.mulls,[card_to_play]))
+                self.gamelog += 'Playing ' + md + '.' + '\n'
+            else:
+                self.grave = np.concatenate((self.grave,[card_to_play]))
+                self.gamelog += 'Evoking ' + md + '.' + '\n'
         if cardname == bl:
             self.lands = np.concatenate((self.lands,[card_to_play]))
             self.gamelog += 'Playing ' + bl + '.' + '\n'
