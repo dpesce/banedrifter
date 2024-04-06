@@ -1,6 +1,6 @@
 ---
 title: "Simulating simple gameplay"
-date: 2024-04-04
+date: 2024-04-06
 mathjax: true
 ---
 
