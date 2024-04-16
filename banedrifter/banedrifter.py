@@ -168,7 +168,7 @@ class player:
     A player and associated board state
     """
 
-    def __init__(self,starting_deck,handsize=7,linelength=100):
+    def __init__(self,starting_deck,handsize=7,linelength=80):
 
         self.deck = starting_deck
 
@@ -279,6 +279,7 @@ class player:
     def draw(self,N=1):
         if N > self.deck.count():
             self.alive = False
+            self.gamelog += 'Attempting to draw ' + str(N) + ' cards.' + '\n'
             self.gamelog += 'PLAYER LOSES VIA MILLING' +'\n'
             self.loss_reason = 'mill'
             return 0
@@ -491,21 +492,27 @@ class player:
 ###################################################
 # gameplay function
 
-def play_game(p1,p2,verbose=False):
+
+def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,verbose=False):
     """
     Play out a game.
     """
 
+    ######################################
+    # first turns
+
     # first turn for player 1
     p1.first_turn()
-    if bl in p1.hand.cardnames():
-        p1.play(bl)
+    cardplay_ruleset(p1,p2)
+    combat_ruleset(p1,p2)
+    p1.end_turn()
     p1.log_boardstate()
 
     # first turn for player 2
     p2.start_turn()
-    if bl in p2.hand.cardnames():
-        p2.play(bl)
+    cardplay_ruleset(p2,p1)
+    combat_ruleset(p1,p2)
+    p2.end_turn()
     p2.log_boardstate()
 
     # subsequent turns
@@ -514,120 +521,26 @@ def play_game(p1,p2,verbose=False):
         ######################################
         # first player's turn
 
+        # alive check
+        if not p1.alive:
+            break
+
+        # begin the turn
         p1.start_turn()
 
         # alive check
         if not p1.alive:
             break
 
-        # play a land if possible
-        if bl in p1.hand.cardnames():
-            p1.play(bl)
+        # play things
+        cardplay_ruleset(p1,p2)
 
         # alive check
         if not p1.alive:
             break
 
-        while p1.count_untapped_lands() >= 5:
-
-            # play a Baneslayer Angel if possible
-            if (ba in p1.hand.cardnames()):
-                p1.play(ba)
-
-            # # if not, play a Mulldrifter
-            # elif (md in p1.hand.cardnames()):
-            #     # if ((p1.handsize() <= 5) & (p1.decksize() >= 2)):
-            #     if (p1.decksize() >= 2):
-            #         p1.play(md)
-            #     else:
-            #         break
-
-            # if not, play a Mulldrifter
-            elif ((md in p1.hand.cardnames()) & (p1.decksize() >= 2)):
-                p1.play(md)
-
-            else:
-                break
-
-            # alive check
-            if not p1.alive:
-                break
-
-        # alive check
-        if not p1.alive:
-            break
-
-        # if you can, attack with all Baneslayers
-        N_attacking = 0
-        attacking_banes = list()
-        attacking_ind = list()
-        for ibane, bane in enumerate(p1.banes):
-            if (not bane.tapped) & (not bane.sick):
-                p1.attack(ba)
-                N_attacking += 1
-                attacking_banes.append(bane)
-                attacking_ind.append(ibane)
-
-        # the opposing player will try to block as many as possible
-        N_blocking = 0
-        blocking_banes = list()
-        blocking_ind = list()
-        for ibane, bane in enumerate(p2.banes):
-            if (not bane.tapped):
-                N_blocking += 1
-                blocking_banes.append(bane)
-                blocking_ind.append(ibane)
-
-        if N_attacking > 0:
-
-            # if there are an equal number of attackers as blockers
-            if (N_attacking == N_blocking):
-
-                # blocking player gains 5 life for each blocker
-                p2.gain_life(N_blocking*5)
-
-                # all attacking and blocking creatures die
-                p1.banes = np.delete(p1.banes,attacking_ind)
-                p1.grave = np.concatenate((p1.grave,attacking_banes))
-                p1.gamelog += str(N_attacking) + ' ' + ba + 's die attacking.'
-                p2.banes = np.delete(p2.banes,blocking_ind)
-                p2.grave = np.concatenate((p2.grave,blocking_banes))
-                p2.gamelog += str(N_blocking) + ' ' + ba + 's die blocking.'
-
-            # if there are more attackers than blockers
-            if (N_attacking > N_blocking):
-
-                # blocking player gains 5 life for each blocker
-                p2.gain_life(N_blocking*5)
-
-                # blocking player loses 5 life for each extra attacker
-                p2.lose_life((N_attacking-N_blocking)*5)
-
-                # all blocking creatures die
-                p2.banes = np.delete(p2.banes,blocking_ind)
-                p2.grave = np.concatenate((p2.grave,blocking_banes))
-                p2.gamelog += str(N_blocking) + ' ' + ba + 's die blocking.'
-
-                # a number of attacking creatures equal to the number of blockers dies
-                p1.banes = np.delete(p1.banes,attacking_ind[:N_blocking])
-                p1.grave = np.concatenate((p1.grave,attacking_banes[:N_blocking]))
-                p1.gamelog += str(N_blocking) + ' ' + ba + 's die attacking.'
-
-            # if there are more blockers than attackers
-            if (N_attacking < N_blocking):
-
-                # blocking player gains 5 life for each attacker
-                p2.gain_life(N_attacking*5)
-
-                # all attacking creatures die
-                p1.banes = np.delete(p1.banes,attacking_ind)
-                p1.grave = np.concatenate((p1.grave,attacking_banes))
-                p1.gamelog += str(N_attacking) + ' ' + ba + 's die attacking.'
-
-                # a number of blocking creatures equal to the number of attackers dies
-                p2.banes = np.delete(p2.banes,blocking_ind[:N_attacking])
-                p2.grave = np.concatenate((p2.grave,blocking_banes[:N_attacking]))
-                p2.gamelog += str(N_attacking) + ' ' + ba + 's die blocking.'
+        # combat
+        combat_ruleset(p1,p2)
 
         # alive check
         if not p1.alive:
@@ -639,120 +552,26 @@ def play_game(p1,p2,verbose=False):
         ######################################
         # second player's turn
 
+        # alive check
+        if not p2.alive:
+            break
+
+        # begin the turn
         p2.start_turn()
 
         # alive check
         if not p2.alive:
             break
 
-        # play a land if possible
-        if bl in p2.hand.cardnames():
-            p2.play(bl)
+        # play things
+        cardplay_ruleset(p2,p1)
 
         # alive check
         if not p2.alive:
             break
 
-        while p2.count_untapped_lands() >= 5:
-
-            # play a Baneslayer Angel if possible
-            if (ba in p2.hand.cardnames()):
-                p2.play(ba)
-
-            # # if not, play a Mulldrifter
-            # elif (md in p2.hand.cardnames()):
-            #     # if ((p2.handsize() <= 5) & (p2.decksize() >= 2)):
-            #     if (p2.decksize() >= 2):
-            #         p2.play(md)
-            #     else:
-            #         break
-
-            # if not, play a Mulldrifter
-            elif ((md in p2.hand.cardnames()) & (p2.decksize() >= 2)):
-                p2.play(md)
-
-            else:
-                break
-
-            # alive check
-            if not p2.alive:
-                break
-
-        # alive check
-        if not p2.alive:
-            break
-
-        # if you can, attack with all Baneslayers
-        N_attacking = 0
-        attacking_banes = list()
-        attacking_ind = list()
-        for ibane, bane in enumerate(p2.banes):
-            if (not bane.tapped) & (not bane.sick):
-                p2.attack(ba)
-                N_attacking += 1
-                attacking_banes.append(bane)
-                attacking_ind.append(ibane)
-
-        # the opposing player will try to block as many as possible
-        N_blocking = 0
-        blocking_banes = list()
-        blocking_ind = list()
-        for ibane, bane in enumerate(p1.banes):
-            if (not bane.tapped):
-                N_blocking += 1
-                blocking_banes.append(bane)
-                blocking_ind.append(ibane)
-
-        if N_attacking > 0:
-
-            # if there are an equal number of attackers as blockers
-            if (N_attacking == N_blocking):
-
-                # blocking player gains 5 life for each blocker
-                p1.gain_life(N_blocking*5)
-
-                # all attacking and blocking creatures die
-                p2.banes = np.delete(p2.banes,attacking_ind)
-                p2.grave = np.concatenate((p2.grave,attacking_banes))
-                p2.gamelog += str(N_attacking) + ' ' + ba + 's die attacking.'
-                p1.banes = np.delete(p1.banes,blocking_ind)
-                p1.grave = np.concatenate((p1.grave,blocking_banes))
-                p1.gamelog += str(N_blocking) + ' ' + ba + 's die blocking.'
-
-            # if there are more attackers than blockers
-            if (N_attacking > N_blocking):
-
-                # blocking player gains 5 life for each blocker
-                p1.gain_life(N_blocking*5)
-
-                # blocking player loses 5 life for each extra attacker
-                p1.lose_life((N_attacking-N_blocking)*5)
-
-                # all blocking creatures die
-                p1.banes = np.delete(p1.banes,blocking_ind)
-                p1.grave = np.concatenate((p1.grave,blocking_banes))
-                p1.gamelog += str(N_blocking) + ' ' + ba + 's die blocking.'
-
-                # a number of attacking creatures equal to the number of blockers dies
-                p2.banes = np.delete(p2.banes,attacking_ind[:N_blocking])
-                p2.grave = np.concatenate((p2.grave,attacking_banes[:N_blocking]))
-                p2.gamelog += str(N_blocking) + ' ' + ba + 's die attacking.'
-
-            # if there are more blockers than attackers
-            if (N_attacking < N_blocking):
-
-                # blocking player gains 5 life for each attacker
-                p1.gain_life(N_attacking*5)
-
-                # all attacking creatures die
-                p2.banes = np.delete(p2.banes,attacking_ind)
-                p2.grave = np.concatenate((p2.grave,attacking_banes))
-                p2.gamelog += str(N_attacking) + ' ' + ba + 's die attacking.'
-
-                # a number of blocking creatures equal to the number of attackers dies
-                p1.banes = np.delete(p1.banes,blocking_ind[:N_attacking])
-                p1.grave = np.concatenate((p1.grave,blocking_banes[:N_attacking]))
-                p1.gamelog += str(N_attacking) + ' ' + ba + 's die blocking.'
+        # combat
+        combat_ruleset(p2,p1)
 
         # alive check
         if not p2.alive:
@@ -760,6 +579,9 @@ def play_game(p1,p2,verbose=False):
 
         p2.end_turn()
         p2.log_boardstate()
+
+    ######################################
+    # return the results
 
     if p1.alive & (not p2.alive):
         if verbose:
@@ -778,4 +600,3 @@ def play_game(p1,p2,verbose=False):
         loss_reason = None
 
     return p1, p2, winner, loss_reason
-
