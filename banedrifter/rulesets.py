@@ -116,3 +116,36 @@ def combat_01(p1,p2):
             p2.grave = np.concatenate((p2.grave,blocking_banes[:N_attacking]))
             p2.gamelog += str(N_attacking) + ' ' + bd.ba + 's die blocking.' + '\n'
 
+###################################################
+# discard rulesets
+
+def discard_01(p1,p2):
+
+    while p1.handsize() > 7:
+
+        N_banes = (p1.hand.cardnames() == bd.ba).sum()
+        N_mulls = (p1.hand.cardnames() == bd.md).sum()
+        N_lands = (p1.hand.cardnames() == bd.bl).sum()
+
+        if ((N_banes > N_mulls) & (N_banes > N_lands)):
+            p1.discard(bd.ba)
+        elif ((N_mulls > N_banes) & (N_mulls > N_lands)):
+            p1.discard(bd.md)
+        elif ((N_lands >= N_banes) & (N_lands >= N_mulls)):
+            p1.discard(bd.bl)
+        elif ((N_banes == N_mulls) & (N_banes >= N_lands)):
+            p1.discard(bd.md)
+        elif ((N_banes == N_mulls) & (N_banes < N_lands)):
+            p1.discard(bd.bl)
+        elif ((N_banes >= N_mulls) & (N_banes == N_lands)):
+            p1.discard(bd.bl)
+        elif ((N_banes < N_mulls) & (N_banes == N_lands)):
+            p1.discard(bd.md)
+        elif ((N_mulls >= N_banes) & (N_mulls == N_lands)):
+            p1.discard(bd.bl)
+        elif ((N_mulls < N_banes) & (N_mulls == N_lands)):
+            p1.discard(bd.ba)
+
+        else:
+            raise Exception("This case isn't captured!")
+            

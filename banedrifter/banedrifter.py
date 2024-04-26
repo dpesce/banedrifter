@@ -458,42 +458,11 @@ class player:
         # draw a card
         self.draw(1)
 
-    # do end-of-turn stuff
-    def end_turn(self):
-
-        while self.handsize() > 7:
-
-            N_banes = (self.hand.cardnames() == ba).sum()
-            N_mulls = (self.hand.cardnames() == md).sum()
-            N_lands = (self.hand.cardnames() == bl).sum()
-
-            if ((N_banes > N_mulls) & (N_banes > N_lands)):
-                self.discard(ba)
-            elif ((N_mulls > N_banes) & (N_mulls > N_lands)):
-                self.discard(md)
-            elif ((N_lands >= N_banes) & (N_lands >= N_mulls)):
-                self.discard(bl)
-            elif ((N_banes == N_mulls) & (N_banes >= N_lands)):
-                self.discard(md)
-            elif ((N_banes == N_mulls) & (N_banes < N_lands)):
-                self.discard(bl)
-            elif ((N_banes >= N_mulls) & (N_banes == N_lands)):
-                self.discard(bl)
-            elif ((N_banes < N_mulls) & (N_banes == N_lands)):
-                self.discard(md)
-            elif ((N_mulls >= N_banes) & (N_mulls == N_lands)):
-                self.discard(bl)
-            elif ((N_mulls < N_banes) & (N_mulls == N_lands)):
-                self.discard(ba)
-
-            else:
-                raise Exception("This case isn't captured!")
-
 ###################################################
 # gameplay function
 
 
-def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,verbose=False):
+def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,discard_ruleset=None,verbose=False):
     """
     Play out a game.
     """
@@ -505,14 +474,14 @@ def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,verbose=False):
     p1.first_turn()
     cardplay_ruleset(p1,p2)
     combat_ruleset(p1,p2)
-    p1.end_turn()
+    discard_ruleset(p1,p2)
     p1.log_boardstate()
 
     # first turn for player 2
     p2.start_turn()
     cardplay_ruleset(p2,p1)
-    combat_ruleset(p1,p2)
-    p2.end_turn()
+    combat_ruleset(p2,p1)
+    discard_ruleset(p2,p1)
     p2.log_boardstate()
 
     # subsequent turns
@@ -546,7 +515,8 @@ def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,verbose=False):
         if not p1.alive:
             break
 
-        p1.end_turn()
+        # end turn
+        discard_ruleset(p1,p2)
         p1.log_boardstate()
 
         ######################################
@@ -577,7 +547,8 @@ def play_game(p1,p2,cardplay_ruleset=None,combat_ruleset=None,verbose=False):
         if not p2.alive:
             break
 
-        p2.end_turn()
+        # end turn
+        discard_ruleset(p2,p1)
         p2.log_boardstate()
 
     ######################################
